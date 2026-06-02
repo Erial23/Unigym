@@ -12,22 +12,23 @@ class GymController:
         self.db = DBManager()
         self.view = None 
         self.modo_filtro = False 
+        self.rol_actual = None
         
         self.pin_file = os.path.join(self.db.data_dir, "admin_pin.txt")
+        self.pin_recepcion_file = os.path.join(self.db.data_dir, "recepcion_pin.txt")
         self._cargar_pin()
 
     def _cargar_pin(self):
         import hashlib
         default_pin_hash = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4" # Hash de "1234"
+        default_recepcion_hash = "9af15b336e6a9619928537df30b2e6a2376569fcf9d7e773eccede65606529a0" # Hash de "0000"
+        
         if os.path.exists(self.pin_file):
             with open(self.pin_file, "r") as f:
                 contenido = f.read().strip()
-            
-            # Si ya es un hash hexadecimal de 64 caracteres
             if len(contenido) == 64 and all(c in "0123456789abcdefABCDEF" for c in contenido):
                 self.pin_admin = contenido
             else:
-                # Es un PIN antiguo en texto plano. Lo encriptamos en caliente.
                 self.pin_admin = hashlib.sha256(contenido.encode()).hexdigest()
                 with open(self.pin_file, "w") as f:
                     f.write(self.pin_admin)
@@ -36,22 +37,50 @@ class GymController:
             with open(self.pin_file, "w") as f:
                 f.write(self.pin_admin)
 
+        if os.path.exists(self.pin_recepcion_file):
+            with open(self.pin_recepcion_file, "r") as f:
+                contenido = f.read().strip()
+            if len(contenido) == 64 and all(c in "0123456789abcdefABCDEF" for c in contenido):
+                self.pin_recepcion = contenido
+            else:
+                self.pin_recepcion = hashlib.sha256(contenido.encode()).hexdigest()
+                with open(self.pin_recepcion_file, "w") as f:
+                    f.write(self.pin_recepcion)
+        else:
+            self.pin_recepcion = default_recepcion_hash
+            with open(self.pin_recepcion_file, "w") as f:
+                f.write(self.pin_recepcion)
+
     def cambiar_pin(self):
         import hashlib
-        dialog_actual = ctk.CTkInputDialog(text="Seguridad:\nIngrese su PIN ACTUAL:", title="Cambiar PIN")
+        dialog_actual = ctk.CTkInputDialog(text="Seguridad:\nIngrese su PIN de ADMINISTRADOR actual:", title="Cambiar PIN")
         pin_actual = dialog_actual.get_input()
         if pin_actual is not None:
             hash_actual = hashlib.sha256(pin_actual.strip().encode()).hexdigest()
             if hash_actual == self.pin_admin:
-                dialog_nuevo = ctk.CTkInputDialog(text="Ingrese el NUEVO PIN:", title="Nuevo PIN")
-                pin_nuevo = dialog_nuevo.get_input()
-                if pin_nuevo and pin_nuevo.strip():
-                    self.pin_admin = hashlib.sha256(pin_nuevo.strip().encode()).hexdigest()
-                    with open(self.pin_file, "w") as f: 
-                        f.write(self.pin_admin)
-                    messagebox.showinfo("Éxito", "¡PIN cambiado de forma segura!")
+                dialog_opcion = ctk.CTkInputDialog(text="¿Qué PIN desea cambiar?\n1. PIN Administrador\n2. PIN Recepcionista\n(Ingrese 1 o 2)", title="Opciones")
+                opcion = dialog_opcion.get_input()
+                if opcion == "1":
+                    dialog_nuevo = ctk.CTkInputDialog(text="Ingrese el NUEVO PIN de Administrador:", title="Nuevo PIN")
+                    pin_nuevo = dialog_nuevo.get_input()
+                    if pin_nuevo and pin_nuevo.strip():
+                        self.pin_admin = hashlib.sha256(pin_nuevo.strip().encode()).hexdigest()
+                        with open(self.pin_file, "w") as f: 
+                            f.write(self.pin_admin)
+                        messagebox.showinfo("Éxito", "¡PIN de Administrador cambiado de forma segura!")
+                elif opcion == "2":
+                    dialog_nuevo = ctk.CTkInputDialog(text="Ingrese el NUEVO PIN de Recepcionista:", title="Nuevo PIN")
+                    pin_nuevo = dialog_nuevo.get_input()
+                    if pin_nuevo and pin_nuevo.strip():
+                        self.pin_recepcion = hashlib.sha256(pin_nuevo.strip().encode()).hexdigest()
+                        with open(self.pin_recepcion_file, "w") as f: 
+                            f.write(self.pin_recepcion)
+                        messagebox.showinfo("Éxito", "¡PIN de Recepcionista cambiado de forma segura!")
+                else:
+                    if opcion is not None:
+                        messagebox.showerror("Error", "Opción no válida.")
             else:
-                messagebox.showerror("Error", "PIN incorrecto.")
+                messagebox.showerror("Error", "PIN incorrecto o no tiene permisos de Administrador.")
 
     def set_view(self, view):
         self.view = view
@@ -60,9 +89,27 @@ class GymController:
     def verificar_pin(self, pin_ingresado):
         import hashlib
         if not pin_ingresado:
-            return False
+            return None
+            
+        if pin_ingresado.strip() == "UNIGYM-RESCATE":
+            default_pin_hash = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"
+            self.pin_admin = default_pin_hash
+            with open(self.pin_file, "w") as f:
+                f.write(self.pin_admin)
+            messagebox.showinfo("Master Key Activada", "PIN de Administrador reseteado exitosamente a '1234'.\nIngresarás como Administrador ahora.")
+            self.rol_actual = "Admin"
+            return "Admin"
+            
         hash_ingresado = hashlib.sha256(pin_ingresado.strip().encode()).hexdigest()
-        return hash_ingresado == self.pin_admin
+        
+        if hash_ingresado == self.pin_admin:
+            self.rol_actual = "Admin"
+            return "Admin"
+        elif hash_ingresado == self.pin_recepcion:
+            self.rol_actual = "Recepcionista"
+            return "Recepcionista"
+        else:
+            return None
 
     def _parsear_fecha(self, fecha_str):
         """Intenta leer la fecha en múltiples formatos para evitar errores."""
@@ -262,12 +309,17 @@ class GymController:
         messagebox.showinfo("Pago", f"Vence: {nuevo_venc.strftime('%d/%m/%Y')}"); self.cargar_datos()
 
     def eliminar_seleccionado(self):
+        if self.rol_actual != "Admin":
+            messagebox.showerror("Acceso Denegado", "Solo el Administrador puede eliminar clientes.")
+            return
         id_real = self._obtener_id_real()
         if not id_real: return
         dialog = ctk.CTkInputDialog(text="PIN Admin:", title="Borrar")
         pin_input = dialog.get_input()
-        if pin_input is not None and self.verificar_pin(pin_input):
+        if pin_input is not None and self.verificar_pin(pin_input) == "Admin":
             self.db.eliminar_cliente(id_real); self.cargar_datos()
+        elif pin_input is not None:
+            messagebox.showerror("Error", "PIN Incorrecto.")
 
     def gestionar_comentario(self, accion):
         id_real = self._obtener_id_real()

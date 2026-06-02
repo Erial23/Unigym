@@ -48,9 +48,12 @@ class MainWindow(ctk.CTk):
 
         self._cargar_logo()
         
-        ctk.CTkLabel(self.sidebar, text="MENÚ GENERAL", font=("Arial", 11, "bold"), text_color="#999").pack(anchor="w", padx=30, pady=(30,15))
-        self._btn_menu("📊  Panel Principal", self.controller.cargar_datos)
-        self._btn_menu("📂  Cargar Excel", self.controller.importar_excel)
+        self.lbl_rol_actual = ctk.CTkLabel(self.sidebar, text="👤 Rol: Ninguno", font=("Arial", 12, "bold"), text_color="#2E86C1")
+        self.lbl_rol_actual.pack(pady=(0, 15))
+        
+        ctk.CTkLabel(self.sidebar, text="MENÚ GENERAL", font=("Arial", 11, "bold"), text_color="#999").pack(anchor="w", padx=30, pady=(10,15))
+        self.btn_panel = self._btn_menu("📊  Panel Principal", self.controller.cargar_datos)
+        self.btn_cargar_excel = self._btn_menu("📂  Cargar Excel", self.controller.importar_excel)
         
         ctk.CTkButton(self.sidebar, text="+  NUEVO CLIENTE", fg_color=C_VERDE_LOGO, hover_color=C_VERDE_HOVER, height=50, font=("Arial", 13, "bold"), text_color="white", corner_radius=8, command=self.controller.abrir_formulario_nuevo).pack(fill="x", padx=20, pady=(15, 5))
         
@@ -86,9 +89,9 @@ class MainWindow(ctk.CTk):
         ctk.CTkFrame(self.sidebar, height=1, fg_color="#F0F0F0").pack(fill="x", padx=30, pady=15)
         
         ctk.CTkLabel(self.sidebar, text="CONFIGURACIÓN", font=("Arial", 11, "bold"), text_color="#999").pack(anchor="w", padx=30, pady=(5,10))
-        self._btn_menu("🔐  Cambiar PIN Admin", self.controller.cambiar_pin)
-        self._btn_menu("💾  Crear Respaldo DB", self.controller.exportar_respaldo)
-        self._btn_menu("🔒  Bloquear Sistema", self.bloquear_pantalla)
+        self.btn_cambiar_pin = self._btn_menu("🔐  Cambiar PIN", self.controller.cambiar_pin)
+        self.btn_respaldo = self._btn_menu("💾  Crear Respaldo DB", self.controller.exportar_respaldo)
+        self.btn_bloquear = self._btn_menu("🔒  Bloquear Sistema", self.bloquear_pantalla)
 
         ctk.CTkLabel(self.sidebar, text="By Erick Moreno", font=("Arial", 10), text_color="#CCC").pack(pady=40)
 
@@ -236,11 +239,13 @@ class MainWindow(ctk.CTk):
             return
 
         pin_input = self.entry_pin.get()
-        if self.controller.verificar_pin(pin_input):
+        rol = self.controller.verificar_pin(pin_input)
+        if rol:
             self.is_locked = False
             self.intentos_fallidos = 0
             self.frame_bloqueo.place_forget()
             self.tiempo_inactivo = 0
+            self._aplicar_permisos(rol)
             self.verificar_inactividad()
         else:
             if not hasattr(self, 'intentos_fallidos'):
@@ -272,6 +277,27 @@ class MainWindow(ctk.CTk):
                 self.btn_unlock.configure(state="normal")
                 self.lbl_lock_sub.configure(text="Ingrese su PIN para acceder", text_color="#666")
                 self.entry_pin.focus()
+
+    def _aplicar_permisos(self, rol):
+        self.lbl_rol_actual.configure(text=f"👤 Rol: {rol}")
+        if rol == "Admin":
+            self.btn_exportar_excel.configure(state="normal")
+            self.btn_cargar_excel.configure(state="normal")
+            self.btn_respaldo.configure(state="normal")
+            self.btn_cambiar_pin.configure(state="normal")
+            try:
+                self.menu.entryconfig("❌  Eliminar Cliente", state="normal")
+            except Exception:
+                pass
+        elif rol == "Recepcionista":
+            self.btn_exportar_excel.configure(state="disabled")
+            self.btn_cargar_excel.configure(state="disabled")
+            self.btn_respaldo.configure(state="disabled")
+            self.btn_cambiar_pin.configure(state="disabled")
+            try:
+                self.menu.entryconfig("❌  Eliminar Cliente", state="disabled")
+            except Exception:
+                pass
 
     def verificar_inactividad(self):
         if self.is_locked: return
@@ -314,6 +340,7 @@ class MainWindow(ctk.CTk):
     def _btn_menu(self, texto, comando):
         btn = ctk.CTkButton(self.sidebar, text=texto, anchor="w", fg_color="transparent", text_color="#555", hover_color="#F5F5F5", font=("Arial", 12, "bold"), height=40, corner_radius=8, command=comando)
         btn.pack(fill="x", padx=20, pady=2)
+        return btn
 
     def _crear_boton_resumen(self, parent, titulo, color_barra, comando):
         card = ctk.CTkFrame(parent, fg_color="white", corner_radius=12, width=175, height=90)
