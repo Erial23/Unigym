@@ -1,11 +1,12 @@
-# -*- mode: python ; coding: utf-8 -*-
-
+import customtkinter
+import os
+customtkinter_path = os.path.dirname(customtkinter.__file__)
 
 a = Analysis(
     ['src\\main.py'],
     pathex=['src'],
     binaries=[],
-    datas=[('assets', 'assets'), ('C:\\Users\\bluyr\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\customtkinter', 'customtkinter')],
+    datas=[('assets', 'assets'), (customtkinter_path, 'customtkinter')],
     hiddenimports=['pandas', 'openpyxl', 'controllers', 'views', 'database'],
     hookspath=[],
     hooksconfig={},

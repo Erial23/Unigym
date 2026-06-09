@@ -13,8 +13,11 @@ app = FastAPI(
 )
 
 # --- RUTA REAL ALINEADA CON DB_MANAGER ---
-DB_PATH = r"C:\UniGym_Datos\gym_database.db"
-STATE_FILE = r"C:\UniGym_Datos\ultimo_envio.txt"
+from database.db_manager import DBManager
+db_mgr = DBManager()
+DB_PATH = db_mgr.db_path
+STATE_FILE = os.path.join(db_mgr.data_dir, "ultimo_envio.txt")
+
 
 def generar_mensaje_personalizado(nombre, fecha_ven):
     """

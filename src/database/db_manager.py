@@ -3,13 +3,16 @@ import os
 
 class DBManager:
     def __init__(self):
-        # --- RUTA FIJA EN DISCO C ---
-        self.data_dir = r"C:\UniGym_Datos"
+        # --- RUTA SEGURA EN DATOS DE APLICACIÓN ---
+        # Usamos %APPDATA% para no requerir permisos de Administrador
+        appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
+        self.data_dir = os.path.join(appdata, "UniGym_Pro")
         
         try:
             if not os.path.exists(self.data_dir):
                 os.makedirs(self.data_dir)
-        except PermissionError:
+        except Exception:
+            # Fallback seguro
             self.data_dir = os.path.join(os.path.expanduser("~"), "UniGym_Datos")
             if not os.path.exists(self.data_dir):
                 os.makedirs(self.data_dir)
@@ -50,6 +53,18 @@ class DBManager:
         except sqlite3.OperationalError:
             # La columna ya existe
             pass
+            
+        # Tabla de pagos
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS pagos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_cliente INTEGER,
+                fecha_pago TEXT,
+                tipo_plan TEXT,
+                monto REAL,
+                FOREIGN KEY(id_cliente) REFERENCES clientes(id)
+            )
+        ''')
             
         conn.commit()
         conn.close()
@@ -128,5 +143,35 @@ class DBManager:
             VALUES (?, ?, ?, ?, 'Activo', '')
         '''
         cursor.executemany(query, lista_clientes)
+        conn.commit()
+        conn.close()
+
+    def registrar_pago(self, id_cliente, fecha_pago, tipo_plan, monto=0.0):
+        conn = self._conectar()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO pagos (id_cliente, fecha_pago, tipo_plan, monto)
+            VALUES (?, ?, ?, ?)
+        ''', (id_cliente, fecha_pago, tipo_plan, monto))
+        conn.commit()
+        conn.close()
+
+    def obtener_pagos(self):
+        conn = self._conectar()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT p.id, COALESCE(c.nombre, 'Cliente Eliminado'), p.fecha_pago, p.tipo_plan, p.monto 
+            FROM pagos p
+            LEFT JOIN clientes c ON p.id_cliente = c.id
+            ORDER BY p.id DESC
+        ''')
+        datos = cursor.fetchall()
+        conn.close()
+        return datos
+
+    def eliminar_pago(self, id_pago):
+        conn = self._conectar()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM pagos WHERE id=?", (id_pago,))
         conn.commit()
         conn.close()

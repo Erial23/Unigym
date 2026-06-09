@@ -3,3 +3,6 @@ pandas
 openpyxl
 pillow
 packaging
+fastapi
+uvicorn
+pywhatkit

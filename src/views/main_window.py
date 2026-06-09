@@ -60,6 +60,13 @@ class MainWindow(ctk.CTk):
         ctk.CTkFrame(self.sidebar, height=1, fg_color="#F0F0F0").pack(fill="x", padx=30, pady=15)
         
         ctk.CTkLabel(self.sidebar, text="COBRANZAS Y NOTAS", font=("Arial", 11, "bold"), text_color="#999").pack(anchor="w", padx=30, pady=(10,15))
+        
+        self.btn_pagos_realizados = ctk.CTkButton(self.sidebar, text="💰  Pagos Realizados", anchor="w", fg_color="#E8F8F5", text_color="#1ABC9C", hover_color="#D1F2EB", font=("Arial", 12, "bold"), height=40, corner_radius=8, command=self.controller.mostrar_historial_pagos)
+        self.btn_pagos_realizados.pack(fill="x", padx=20, pady=5)
+
+        self.btn_pagos_faltantes = ctk.CTkButton(self.sidebar, text="❌  Pagos Faltantes", anchor="w", fg_color="#FDEDEC", text_color="#E74C3C", hover_color="#FADBD8", font=("Arial", 12, "bold"), height=40, corner_radius=8, command=self.controller.mostrar_pagos_faltantes)
+        self.btn_pagos_faltantes.pack(fill="x", padx=20, pady=5)
+
         self.btn_alertas = ctk.CTkButton(self.sidebar, text="⚠️  Por Terminar", anchor="w", fg_color="#FFF8E1", text_color="#F39C12", hover_color="#FFE082", font=("Arial", 12, "bold"), height=40, corner_radius=8, command=self.controller.cargar_por_terminar)
         self.btn_alertas.pack(fill="x", padx=20, pady=5)
         
@@ -89,9 +96,9 @@ class MainWindow(ctk.CTk):
         ctk.CTkFrame(self.sidebar, height=1, fg_color="#F0F0F0").pack(fill="x", padx=30, pady=15)
         
         ctk.CTkLabel(self.sidebar, text="CONFIGURACIÓN", font=("Arial", 11, "bold"), text_color="#999").pack(anchor="w", padx=30, pady=(5,10))
-        self.btn_cambiar_pin = self._btn_menu("🔐  Cambiar PIN", self.controller.cambiar_pin)
+        self.btn_cambiar_pin = self._btn_menu("🔐  Cambiar Credenciales", self.controller.cambiar_credenciales)
         self.btn_respaldo = self._btn_menu("💾  Crear Respaldo DB", self.controller.exportar_respaldo)
-        self.btn_bloquear = self._btn_menu("🔒  Bloquear Sistema", self.bloquear_pantalla)
+        self.btn_bloquear = self._btn_menu("🔒  Cerrar Sistema", self.bloquear_pantalla)
 
         ctk.CTkLabel(self.sidebar, text="By Erick Moreno", font=("Arial", 10), text_color="#CCC").pack(pady=40)
 
@@ -145,7 +152,8 @@ class MainWindow(ctk.CTk):
         # 🖱️ MENÚ CONTEXTUAL ACTUALIZADO
         # ============================================================
         self.menu = tk.Menu(self, tearoff=0, bg="white", fg="#333", relief="flat", bd=1)
-        self.menu.add_command(label="✅  Registrar PAGO MES", command=lambda: self.controller.renovar_seleccionado("Mensual"))
+        self.menu.add_command(label="✅  Registrar PAGO MES ($25)", command=lambda: self.controller.renovar_seleccionado("Mensual"))
+        self.menu.add_command(label="✅  Registrar PAGO DIARIO ($2)", command=lambda: self.controller.renovar_seleccionado("Diario"))
         self.menu.add_command(label="📲  Enviar Alerta WhatsApp", command=self.controller.enviar_whatsapp_individual)
         self.menu.add_separator()
         self.menu.add_command(label="✏️  Editar Cliente / Fechas", command=self.controller.abrir_formulario_editar)
@@ -195,10 +203,13 @@ class MainWindow(ctk.CTk):
         self.lbl_candado.pack(pady=(35, 10))
         self.lbl_lock_title = ctk.CTkLabel(self.caja_login, text="UniGym", font=("Arial", 26, "bold"), text_color="#222")
         self.lbl_lock_title.pack(pady=10)
-        self.lbl_lock_sub = ctk.CTkLabel(self.caja_login, text="Ingrese su PIN para acceder", font=("Arial", 14), text_color="#666")
-        self.lbl_lock_sub.pack(pady=(0, 30))
+        self.lbl_lock_sub = ctk.CTkLabel(self.caja_login, text="Ingrese su Usuario y PIN", font=("Arial", 14), text_color="#666")
+        self.lbl_lock_sub.pack(pady=(0, 10))
+        self.entry_user = ctk.CTkEntry(self.caja_login, placeholder_text="Usuario", width=220, height=50, justify="center", font=("Arial", 18, "bold"), fg_color="#F8F9FA", border_width=1, border_color="#D5D8DC", text_color="#333")
+        self.entry_user.pack(pady=5)
+        self.entry_user.bind("<Return>", lambda e: self.entry_pin.focus())
         self.entry_pin = ctk.CTkEntry(self.caja_login, placeholder_text="****", show="●", width=220, height=50, justify="center", font=("Arial", 24, "bold"), fg_color="#F8F9FA", border_width=1, border_color="#D5D8DC", text_color="#333")
-        self.entry_pin.pack(pady=10)
+        self.entry_pin.pack(pady=5)
         self.entry_pin.bind("<Return>", lambda e: self.desbloquear())
         self.btn_unlock = ctk.CTkButton(self.caja_login, text="DESBLOQUEAR", font=("Arial", 14, "bold"), height=50, width=220, fg_color=C_VERDE_LOGO, hover_color=C_VERDE_HOVER, command=self.desbloquear)
         self.btn_unlock.pack(pady=20)
@@ -226,8 +237,9 @@ class MainWindow(ctk.CTk):
         self.is_locked = True
         self.frame_bloqueo.place(relx=0, rely=0, relwidth=1, relheight=1)
         self.frame_bloqueo.tkraise()
+        self.entry_user.delete(0, 'end')
         self.entry_pin.delete(0, 'end')
-        self.entry_pin.focus()
+        self.entry_user.focus()
         self._crear_blur_central()
 
     def desbloquear(self):
@@ -238,8 +250,9 @@ class MainWindow(ctk.CTk):
             messagebox.showerror("Bloqueo temporal", f"Demasiados intentos. Intente de nuevo en {restante} segundos.")
             return
 
+        user_input = self.entry_user.get()
         pin_input = self.entry_pin.get()
-        rol = self.controller.verificar_pin(pin_input)
+        rol = self.controller.verificar_credenciales(user_input, pin_input)
         if rol:
             self.is_locked = False
             self.intentos_fallidos = 0
@@ -263,6 +276,7 @@ class MainWindow(ctk.CTk):
                 messagebox.showerror("Acceso", f"PIN Incorrecto.\n\nIntentos restantes: {intentos_restantes}")
 
     def _aplicar_bloqueo_interfaz(self):
+        self.entry_user.configure(state="disabled")
         self.entry_pin.configure(state="disabled")
         self.btn_unlock.configure(state="disabled")
         self._cuenta_regresiva_bloqueo(60)
@@ -273,10 +287,11 @@ class MainWindow(ctk.CTk):
             self.after(1000, lambda: self._cuenta_regresiva_bloqueo(segundos - 1))
         else:
             if self.is_locked:
+                self.entry_user.configure(state="normal")
                 self.entry_pin.configure(state="normal")
                 self.btn_unlock.configure(state="normal")
-                self.lbl_lock_sub.configure(text="Ingrese su PIN para acceder", text_color="#666")
-                self.entry_pin.focus()
+                self.lbl_lock_sub.configure(text="Ingrese su Usuario y PIN", text_color="#666")
+                self.entry_user.focus()
 
     def _aplicar_permisos(self, rol):
         self.lbl_rol_actual.configure(text=f"👤 Rol: {rol}")
@@ -362,9 +377,9 @@ class MainWindow(ctk.CTk):
         style.configure("Treeview.Heading", background="white", foreground="#777", relief="flat", font=("Arial", 10, "bold"))
         style.layout("Treeview", [('Treeview.treearea', {'sticky': 'nswe'})])
         style.map("Treeview", background=[('selected', '#F0F9F0')], foreground=[('selected', '#333')])
-        cols = ("ID", "Nombre", "Teléfono", "Inicio", "Vencimiento", "Estado")
+        cols = ("ID", "Nombre", "Teléfono", "Inicio", "Vencimiento", "Estado", "Notas")
         self.tree = ttk.Treeview(self.frame_tabla, columns=cols, show="headings", selectmode="browse")
-        anchos = [40, 240, 110, 110, 110, 120]
+        anchos = [40, 220, 100, 100, 100, 120, 80]
         for c, w in zip(cols, anchos): self.tree.heading(c, text=c.upper()); self.tree.column(c, width=w, anchor="center")
         self.tree.column("Nombre", anchor="w")
         self.tree.tag_configure("vencido", foreground=C_ROJO_ALERTA)
@@ -375,6 +390,23 @@ class MainWindow(ctk.CTk):
         self.tree.pack(side="left", fill="both", expand=True, padx=20, pady=15)
         scrolly.pack(side="right", fill="y", padx=(0,5), pady=15)
         self.tree.bind("<Button-3>", lambda e: self.menu.post(e.x_root, e.y_root))
+        
+        def _on_tree_click(event):
+            region = self.tree.identify("region", event.x, event.y)
+            if region == "cell":
+                col_id = self.tree.identify_column(event.x)
+                if col_id == "#7":  # Columna Notas
+                    row_id = self.tree.identify_row(event.y)
+                    if row_id:
+                        self.tree.selection_set(row_id)
+                        # Verificamos qué dice la celda
+                        valor_celda = self.tree.item(row_id, "values")[6]
+                        if "📝" in valor_celda:
+                            self.controller.gestionar_comentario("ver")
+                        else:
+                            self.controller.gestionar_comentario("editar")
+                            
+        self.tree.bind("<ButtonRelease-1>", _on_tree_click)
 
     def actualizar_tarjetas(self, total, activos, vencidos, inactivos=0):
         self.lbl_total.configure(text=str(total))

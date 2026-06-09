@@ -1,12 +1,13 @@
-# -*- mode: python ; coding: utf-8 -*-
-
+import customtkinter
+import os
+customtkinter_path = os.path.dirname(customtkinter.__file__)
 
 a = Analysis(
     ['src\\main.py'],
     pathex=['src'],
     binaries=[],
-    datas=[('assets', 'assets'), ('C:\\Users\\Erick\\AppData\\Local\\Programs\\Python\\Python314\\Lib\\site-packages\\customtkinter', 'customtkinter')],
-    hiddenimports=['pandas', 'openpyxl', 'controllers', 'views', 'database'],
+    datas=[('assets', 'assets'), (customtkinter_path, 'customtkinter')],
+    hiddenimports=['pandas', 'openpyxl', 'controllers', 'views', 'database', 'uvicorn', 'fastapi', 'pywhatkit', 'pydantic', 'services.fast'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

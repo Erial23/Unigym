@@ -18,7 +18,9 @@ def iniciar_microservicio():
     Evita abrir ventanas negras de terminal en sistemas Windows.
     """
     try:
-        cmd = [sys.executable, "-m", "uvicorn", "services.fast:app", "--port", "8000", "--host", "127.0.0.1"]
+        # Usamos el argumento personalizado --run-server en lugar de -m uvicorn
+        # para que funcione de manera segura y sin bucle infinito tras compilar con PyInstaller.
+        cmd = [sys.executable, "--run-server"]
         # creationflags=0x08000000 (CREATE_NO_WINDOW) evita abrir ventana de consola en Windows
         creationflags = 0x08000000 if sys.platform == "win32" else 0
         
@@ -78,4 +80,10 @@ def iniciar_sistema():
     main_gui.mainloop()
 
 if __name__ == "__main__":
+    # Interceptar la llamada interna para correr el servidor
+    if len(sys.argv) > 1 and sys.argv[1] == "--run-server":
+        import uvicorn
+        uvicorn.run("services.fast:app", host="127.0.0.1", port=8000, log_level="warning")
+        sys.exit(0)
+        
     iniciar_sistema()
